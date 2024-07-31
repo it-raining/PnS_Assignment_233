@@ -81,13 +81,45 @@ freq_to_mhz <- function(x) {
     substr(1, 1) %>% # get the first letter
     toupper() # uppercase the unit
   fac <- switch(unit,
-    K = 1 / 1000, # kHz to MHz
-    M = 1, # MHz to MHz
-    G = 1000, # GHz to MHz
-    T = 1000000, # THz to MHz
-    1 # Default: MHz
+                K = 1 / 1000, # kHz to MHz
+                M = 1, # MHz to MHz
+                G = 1000, # GHz to MHz
+                T = 1000000, # THz to MHz
+                1 # Default: MHz
   )
   return(num * fac)
+}
+SizeMemory = function(x) {
+  if (is.numeric(x)){
+    return(x)
+  } else if (grepl("K", x)){
+    y <- 0.000001
+  } else if (grepl("M", x)){
+    y <- 0.001
+  } else if (grepl("G", x)){
+    y <- 1
+  } else if (grepl("T", x)){
+    y <- 1000
+  } else {
+    y <- 1
+  }
+  return(y*get_num(x))
+}
+CacheMapper <- function(x) {
+  if (is.numeric(x)){
+    return(x)
+  } else if (grepl("K", x)){
+    y <- 1
+  } else if (grepl("M", x)){
+    y <- 1000
+  } else if (grepl("G", x)){
+    y <- 1000000
+  } else if (grepl("T", x)){
+    y <- 1000000000
+  } else {
+    y <- 1
+  }
+  return(y*get_num(x))
 }
 #-----------------
 ### PLOT ###
@@ -99,13 +131,13 @@ freq_to_mhz <- function(x) {
 # e.g: hist_plot("Bo nho Cache", new_data$Cache, MB, 512)
 hist_plot <- function(name, column_name, xlabel, max) {
   hist(column_name,
-    main = name,
-    xlab = xlabel,
-    ylab = "Frequency",
-    ylim = c(0, max),
-    labels = TRUE,
-    breaks = 15,
-    col = "lightgreen"
+       main = name,
+       xlab = xlabel,
+       ylab = "Frequency",
+       ylim = c(0, max),
+       labels = TRUE,
+       breaks = 15,
+       col = "lightgreen"
   )
 }
 
@@ -178,16 +210,16 @@ new_data <- new_data %>%
 # Transfer per second to MHz
 # TESTING: new_data <- CleanData_rm(new_data, Bus_Speed)
 tmp <- separate(new_data,
-  col = Bus_Speed,
-  into = c("Bus_Speed", "Speed_Unit", "Bus_Type"),
-  sep = " ",
-  fill = "right"
+                col = Bus_Speed,
+                into = c("Bus_Speed", "Speed_Unit", "Bus_Type"),
+                sep = " ",
+                fill = "right"
 )
 
 new_data$Bus_Speed <- ifelse(tmp$Speed_Unit == "MHz",
-  as.numeric(tmp$Bus_Speed),
-  as.numeric(tmp$Bus_Speed) * 100
-  # Maybe change when I know wtf is tranfer type and how can convert exactly
+                             as.numeric(tmp$Bus_Speed),
+                             as.numeric(tmp$Bus_Speed) * 100
+                             # Maybe change when I know wtf is tranfer type and how can convert exactly
 )
 rm(tmp)
 # ---------------------------
@@ -198,6 +230,18 @@ new_data <- new_data %>%
   mutate(
     Max_Memory_Bandwidth = sapply(Max_Memory_Bandwidth, get_num)
   )
+# ---------------------------
+### Cache ###
+# UNIT: KB
+# Transfer per second to KB
+new_data$Cache <- sapply(new_data$Cache, CacheMapper)
+new_data$Cache <- ifelse(is.na(new_data$Cache), mean(new_data$Cache, na.rm = TRUE), new_data$Cache)
+# ---------------------------
+### Max_Memory_Size ###
+# UNIT: GB
+# Transfer per second to GB
+new_data$Max_Memory_Size <- sapply(new_data$Max_Memory_Size, SizeMemory)
+new_data$Max_Memory_Size <- ifelse(is.na(new_data$Max_Memory_Size), mean(new_data$Max_Memory_Size, na.rm = TRUE), new_data$Max_Memory_Size)
 # ---------------------------
 #################################
 #       Descriptive statistics
