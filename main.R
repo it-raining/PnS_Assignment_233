@@ -20,7 +20,9 @@ CleanData_rm <- function(data, column_name) {
   data %>% filter( # Loc tat ca cac dong thoa man dieu kien
     # {{ vec }} acts as a placeholder
     # for any column name as arg
-    {{ column_name }} %in% c(NA, "N/A", "")
+    !is.na({{ column_name }}) &
+      {{ column_name }} != "N/A" &
+      {{ column_name }} != ""
   )
 }
 # Brief: Fill the missing values by same Sample_Vector name
@@ -35,7 +37,10 @@ CleanData_f_name <- function(data, column_name, sample_column_name) {
       {{ column_name }} %in% c(NA, "N/A", ""),
       # Replace NA values with the first non-NA value from
       # the sample column.
-      first({{ column_name }}[{{ column_name }} %in% c(NA, "N/A", "")]),
+      first({{ column_name }}[
+        !is.na({{ column_name }}) &
+      {{ column_name }} != "N/A" &
+      {{ column_name }} != ""]),
       # else just keep its value
       {{ column_name }}
     ))
@@ -55,6 +60,25 @@ CleanData_f_avr <- function(data, column_name) {
       {{ column_name }}
     ))
 }
+# Brief: Fill the missing values by average of Sample_Vector name
+# Arguments: data - table data; column_names - working column;
+#             sample_column_name - column to fill based on same value
+# e.g: new_data <- CleanData_f_name_avr(new_data, Cache, Product_Collection)
+CleanData_f_name <- function(data, column_name, sample_column_name) {
+  data %>%
+    # groups the data frame by the sample column.
+    group_by({{ sample_column_name }}) %>%
+    mutate({{ column_name }} := ifelse(
+      {{ column_name }} %in% c(NA, "N/A", ""),
+      # Replace NA values with the first non-NA value from
+      # the sample column.
+      {{ column_name }} %>%
+        get_num() %>%
+        mean(na.rm = TRUE),
+      # else just keep its value
+      {{ column_name }}
+    ))
+}
 #-----------------
 ### CONVERT FUNCTIONS ###
 # Brief: Convert data into number
@@ -66,11 +90,11 @@ get_num <- function(x) {
     as.numeric(na.rm = TRUE) # covert into number
 }
 #-----------------
-# Brief: Convert data into number
+# Brief: Convert data into same unit (Mega)
 # Arguments: x - data to convert
-# e.g: new_data$col_to_convert <- sapply(new_data$col_to_convert, get_num)
-freq_to_mhz <- function(x) {
-  # Check if the input is numeric (who knows what is it unit)
+# e.g: new_data$col_to_convert <- sapply(new_data$col_to_convert, unit_to_M )
+unit_to_M <- function(x) {
+  # Check if the input is numeric (why do you use this function)
   if (is.numeric(x)) {
     return(x)
   }
@@ -196,7 +220,6 @@ missing_data_frequency <- missing_data %>%
 
 
 
-new_data$Cache <- sapply(new_data$Cache, freq_to_mhz)
 # ---------------------------
 ### Max_nb_of_Memory_Channels ###
 # UNIT: None
@@ -242,6 +265,11 @@ new_data$Cache <- ifelse(is.na(new_data$Cache), mean(new_data$Cache, na.rm = TRU
 # Transfer per second to GB
 new_data$Max_Memory_Size <- sapply(new_data$Max_Memory_Size, SizeMemory)
 new_data$Max_Memory_Size <- ifelse(is.na(new_data$Max_Memory_Size), mean(new_data$Max_Memory_Size, na.rm = TRUE), new_data$Max_Memory_Size)
+# ---------------------------
+### TDP ###
+# UNIT: W
+new_data$TDP <- sapply(new_data$TDP, get_num)
+new_data <- CleanData_f_name_avr(new_data, TDP, Product_Collection)
 # ---------------------------
 #################################
 #       Descriptive statistics
