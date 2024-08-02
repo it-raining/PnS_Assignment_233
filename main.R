@@ -270,6 +270,7 @@ new_data$Max_Memory_Size <- ifelse(is.na(new_data$Max_Memory_Size), mean(new_dat
 # UNIT: W
 new_data$TDP <- sapply(new_data$TDP, get_num)
 new_data <- CleanData_f_name_avr(new_data, TDP, Product_Collection)
+new_data <- CleanData_rm(new_data, TDP)
 # ---------------------------
 ### Processor_Base_Frequency ###
 # UNIT: MHz
