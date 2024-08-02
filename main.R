@@ -271,6 +271,14 @@ new_data$Max_Memory_Size <- ifelse(is.na(new_data$Max_Memory_Size), mean(new_dat
 new_data$TDP <- sapply(new_data$TDP, get_num)
 new_data <- CleanData_f_name_avr(new_data, TDP, Product_Collection)
 # ---------------------------
+### Processor_Base_Frequency ###
+# UNIT: Ghz
+new_data$Processor_Base_Frequency <- sapply(new_data$Processor_Base_Frequency, SizeMemory)
+new_data$Processor_Base_Frequency <- round(new_data$Processor_Base_Frequency, digits = 2)
+# ---------------------------
+### nb_of_Cores ###
+# Do nothing
+#################################
 #################################
 #       Descriptive statistics
 #################################
