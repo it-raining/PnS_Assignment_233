@@ -64,7 +64,7 @@ CleanData_f_avr <- function(data, column_name) {
 # Arguments: data - table data; column_names - working column;
 #             sample_column_name - column to fill based on same value
 # e.g: new_data <- CleanData_f_name_avr(new_data, Cache, Product_Collection)
-CleanData_f_name <- function(data, column_name, sample_column_name) {
+CleanData_f_name_avr <- function(data, column_name, sample_column_name) {
   data %>%
     # groups the data frame by the sample column.
     group_by({{ sample_column_name }}) %>%
