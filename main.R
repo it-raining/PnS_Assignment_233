@@ -315,6 +315,20 @@ new_data <- CleanData_rm(new_data, TDP)
 new_data$Processor_Base_Frequency <- sapply(new_data$Processor_Base_Frequency, SizeMemory)
 new_data$Processor_Base_Frequency <- round(new_data$Processor_Base_Frequency, digits = 2)
 # ---------------------------
+### PCI_Express_Revision ###
+# UNIT: None
+new_data <- new_data %>%
+  mutate(
+    PCI_Express_Revision = sapply(PCI_Express_Revision, get_num)
+  ) # Convert into number
+# ---------------------------
+      ### DirectX_Support ###
+# UNIT: None
+new_data <- new_data %>%
+  mutate(
+    DirectX_Support = sapply(DirectX_Support, get_num)
+  ) # Convert into number
+# ---------------------------
 ### nb_of_Cores ###
 # Do_nothing
 #################################
