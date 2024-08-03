@@ -39,8 +39,9 @@ CleanData_f_name <- function(data, column_name, sample_column_name) {
       # the sample column.
       first({{ column_name }}[
         !is.na({{ column_name }}) &
-      {{ column_name }} != "N/A" &
-      {{ column_name }} != ""]),
+          {{ column_name }} != "N/A" &
+          {{ column_name }} != ""
+      ]),
       # else just keep its value
       {{ column_name }}
     ))
@@ -80,6 +81,42 @@ CleanData_f_name_avr <- function(data, column_name, sample_column_name) {
     ))
 }
 #-----------------
+# Brief: Fill the missing values by the most repeated value
+#         of Sample_Vector name
+# Arguments: data - table data; column_names - working column;
+#             sample_column_name - column to fill based on same value
+# e.g: new_data <- CleanData_f_name_mod(new_data, Cache, Product_Collection)
+CleanData_f_name_mod <- function(data, column_name, sample_column_name) {
+  data %>%
+    # groups the data frame by the sample column.
+    group_by({{ sample_column_name }}) %>%
+    mutate({{ column_name }} := ifelse(
+      {{ column_name }} %in% c(NA, "N/A", ""),
+      Mod({{ column_name}}),
+      {{ column_name }}
+    ))
+}
+#-----------------
+### OUTLIER ###
+# Define: an outlier if it is 1.5 times the interquartile range greater than the
+# third quartile (Q3) or 1.5 times the interquartile range less than the first
+# quartile (Q1).
+# Brief: Find the outlier of the data
+# Arguments: data - data table
+#             column_name - access data column name
+# e.g: outlier_cache <- outlier_finder(new_data, new_data$Cache)
+outlier_finder <- function(data, column_name) {
+  q1 <- quantile(column_name, 0.25, na.rm = TRUE)
+  q3 <- quantile(column_name, 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  outliers <- data %>%
+    subset(
+      column_name < (q1 - 1.5 * iqr) |
+        column_name > (q3 + 1.5 * iqr)
+    )
+  return(outliers)
+}
+
 ### CONVERT FUNCTIONS ###
 # Brief: Convert data into number
 # Arguments: x - data to convert
@@ -105,45 +142,45 @@ unit_to_M <- function(x) {
     substr(1, 1) %>% # get the first letter
     toupper() # uppercase the unit
   fac <- switch(unit,
-                K = 1 / 1000, # kHz to MHz
-                M = 1, # MHz to MHz
-                G = 1000, # GHz to MHz
-                T = 1000000, # THz to MHz
-                1 # Default: MHz
+    K = 1 / 1000, # kHz to MHz
+    M = 1, # MHz to MHz
+    G = 1000, # GHz to MHz
+    T = 1000000, # THz to MHz
+    1 # Default: MHz
   )
   return(num * fac)
 }
-SizeMemory = function(x) {
-  if (is.numeric(x)){
+SizeMemory <- function(x) {
+  if (is.numeric(x)) {
     return(x)
-  } else if (grepl("K", x)){
+  } else if (grepl("K", x)) {
     y <- 0.000001
-  } else if (grepl("M", x)){
+  } else if (grepl("M", x)) {
     y <- 0.001
-  } else if (grepl("G", x)){
+  } else if (grepl("G", x)) {
     y <- 1
-  } else if (grepl("T", x)){
+  } else if (grepl("T", x)) {
     y <- 1000
   } else {
     y <- 1
   }
-  return(y*get_num(x))
+  return(y * get_num(x))
 }
 CacheMapper <- function(x) {
-  if (is.numeric(x)){
+  if (is.numeric(x)) {
     return(x)
-  } else if (grepl("K", x)){
+  } else if (grepl("K", x)) {
     y <- 1
-  } else if (grepl("M", x)){
+  } else if (grepl("M", x)) {
     y <- 1000
-  } else if (grepl("G", x)){
+  } else if (grepl("G", x)) {
     y <- 1000000
-  } else if (grepl("T", x)){
+  } else if (grepl("T", x)) {
     y <- 1000000000
   } else {
     y <- 1
   }
-  return(y*get_num(x))
+  return(y * get_num(x))
 }
 #-----------------
 ### PLOT ###
@@ -155,13 +192,13 @@ CacheMapper <- function(x) {
 # e.g: hist_plot("Bo nho Cache", new_data$Cache, MB, 512)
 hist_plot <- function(name, column_name, xlabel, max) {
   hist(column_name,
-       main = name,
-       xlab = xlabel,
-       ylab = "Frequency",
-       ylim = c(0, max),
-       labels = TRUE,
-       breaks = 15,
-       col = "lightgreen"
+    main = name,
+    xlab = xlabel,
+    ylab = "Frequency",
+    ylim = c(0, max),
+    labels = TRUE,
+    breaks = 15,
+    col = "lightgreen"
   )
 }
 
@@ -175,9 +212,9 @@ data <- read.csv("Data//Intel_CPUs.csv")
 # Extract data
 new_data <- data[, c(
   "Product_Collection",
+  "Vertical_Segment",
   "Bus_Speed",
   "Cache",
-  "Graphics_Max_Dynamic_Frequency",
   "Graphics_Video_Max_Memory",
   "Max_Memory_Bandwidth",
   "Max_nb_of_Memory_Channels",
@@ -185,8 +222,9 @@ new_data <- data[, c(
   "nb_of_Cores",
   "Processor_Base_Frequency",
   "Recommended_Customer_Price",
-  "Secure_Key",
-  "TDP"
+  "TDP",
+  "DirectX_Support",
+  "PCI_Express_Revision"
 )]
 str(new_data)
 # ---------------------------
@@ -233,16 +271,16 @@ new_data <- new_data %>%
 # Transfer per second to MHz
 # TESTING: new_data <- CleanData_rm(new_data, Bus_Speed)
 tmp <- separate(new_data,
-                col = Bus_Speed,
-                into = c("Bus_Speed", "Speed_Unit", "Bus_Type"),
-                sep = " ",
-                fill = "right"
+  col = Bus_Speed,
+  into = c("Bus_Speed", "Speed_Unit", "Bus_Type"),
+  sep = " ",
+  fill = "right"
 )
 
 new_data$Bus_Speed <- ifelse(tmp$Speed_Unit == "MHz",
-                             as.numeric(tmp$Bus_Speed),
-                             as.numeric(tmp$Bus_Speed) * 100
-                             # Maybe change when I know wtf is tranfer type and how can convert exactly
+  as.numeric(tmp$Bus_Speed),
+  as.numeric(tmp$Bus_Speed) * 100
+  # Maybe change when I know wtf is tranfer type and how can convert exactly
 )
 rm(tmp)
 # ---------------------------
@@ -273,8 +311,8 @@ new_data <- CleanData_f_name_avr(new_data, TDP, Product_Collection)
 new_data <- CleanData_rm(new_data, TDP)
 # ---------------------------
 ### Processor_Base_Frequency ###
-# UNIT: MHz
-new_data$Processor_Base_Frequency <- sapply(new_data$Processor_Base_Frequency, unit_to_M)
+# UNIT: GHz
+new_data$Processor_Base_Frequency <- sapply(new_data$Processor_Base_Frequency, SizeMemory)
 new_data$Processor_Base_Frequency <- round(new_data$Processor_Base_Frequency, digits = 2)
 # ---------------------------
 ### nb_of_Cores ###
@@ -297,9 +335,9 @@ mean <- apply(summary_stats, 2, mean)
 sd <- apply(summary_stats, 2, sd)
 
 # Calculate quartile scores
-q1 <- apply(summary_stats, 2, quantile, probs = 0.25)
+q1 <- apply(summary_stats, 2, quantile, probs = 0.25, na.rm = TRUE)
 med <- apply(summary_stats, 2, median)
-q3 <- apply(summary_stats, 2, quantile, probs = 0.75)
+q3 <- apply(summary_stats, 2, quantile, probs = 0.75, na.rm = TRUE)
 
 # Calculate min value
 min <- apply(summary_stats, 2, min)
@@ -311,4 +349,4 @@ max <- apply(summary_stats, 2, max)
 summary_stats <- data.frame(mean, sd, q1, med, q3, min, max)
 # ---------------------------
 ### Cache statistics ###
-hist_plot("Bo nho Cache", new_data$Cache, MB, 512)
+hist_plot("?", new_data$Recommended_Customer_Price, "x", 2000)
