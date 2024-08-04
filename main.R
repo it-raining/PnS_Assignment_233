@@ -142,11 +142,11 @@ unit_to_M <- function(x) {
     substr(1, 1) %>% # get the first letter
     toupper() # uppercase the unit
   fac <- switch(unit,
-    K = 1 / 1000, # kHz to MHz
-    M = 1, # MHz to MHz
-    G = 1000, # GHz to MHz
-    T = 1000000, # THz to MHz
-    1 # Default: MHz
+                K = 1 / 1000, # kHz to MHz
+                M = 1, # MHz to MHz
+                G = 1000, # GHz to MHz
+                T = 1000000, # THz to MHz
+                1 # Default: MHz
   )
   return(num * fac)
 }
@@ -192,13 +192,13 @@ CacheMapper <- function(x) {
 # e.g: hist_plot("Bo nho Cache", new_data$Cache, MB, 512)
 hist_plot <- function(name, column_name, xlabel, max) {
   hist(column_name,
-    main = name,
-    xlab = xlabel,
-    ylab = "Frequency",
-    ylim = c(0, max),
-    labels = TRUE,
-    breaks = 15,
-    col = "lightgreen"
+       main = name,
+       xlab = xlabel,
+       ylab = "Frequency",
+       ylim = c(0, max),
+       labels = TRUE,
+       breaks = 15,
+       col = "lightgreen"
   )
 }
 
@@ -271,16 +271,16 @@ new_data <- new_data %>%
 # Transfer per second to MHz
 # TESTING: new_data <- CleanData_rm(new_data, Bus_Speed)
 tmp <- separate(new_data,
-  col = Bus_Speed,
-  into = c("Bus_Speed", "Speed_Unit", "Bus_Type"),
-  sep = " ",
-  fill = "right"
+                col = Bus_Speed,
+                into = c("Bus_Speed", "Speed_Unit", "Bus_Type"),
+                sep = " ",
+                fill = "right"
 )
 
 new_data$Bus_Speed <- ifelse(tmp$Speed_Unit == "MHz",
-  as.numeric(tmp$Bus_Speed),
-  as.numeric(tmp$Bus_Speed) * 100
-  # Maybe change when I know wtf is tranfer type and how can convert exactly
+                             as.numeric(tmp$Bus_Speed),
+                             as.numeric(tmp$Bus_Speed) * 100
+                             # Maybe change when I know wtf is tranfer type and how can convert exactly
 )
 rm(tmp)
 # ---------------------------
@@ -296,13 +296,15 @@ new_data <- new_data %>%
 # UNIT: KB
 # Transfer per second to KB
 new_data$Cache <- sapply(new_data$Cache, CacheMapper)
-new_data$Cache <- ifelse(is.na(new_data$Cache), mean(new_data$Cache, na.rm = TRUE), new_data$Cache)
+new_data <- CleanData_f_name_avr(new_data, Cache, Vertical_Segment)
+new_data <- CleanData_rm(new_data, Cache)
 # ---------------------------
 ### Max_Memory_Size ###
 # UNIT: GB
 # Transfer per second to GB
 new_data$Max_Memory_Size <- sapply(new_data$Max_Memory_Size, SizeMemory)
-new_data$Max_Memory_Size <- ifelse(is.na(new_data$Max_Memory_Size), mean(new_data$Max_Memory_Size, na.rm = TRUE), new_data$Max_Memory_Size)
+new_data <- CleanData_f_name_avr(new_data, Max_Memory_Size, Vertical_Segment)
+new_data <- CleanData_rm(new_data, Max_Memory_Size)
 # ---------------------------
 ### TDP ###
 # UNIT: W
@@ -322,7 +324,7 @@ new_data <- new_data %>%
     PCI_Express_Revision = sapply(PCI_Express_Revision, get_num)
   ) # Convert into number
 # ---------------------------
-      ### DirectX_Support ###
+### DirectX_Support ###
 # UNIT: None
 new_data <- new_data %>%
   mutate(
@@ -363,4 +365,9 @@ max <- apply(summary_stats, 2, max)
 summary_stats <- data.frame(mean, sd, q1, med, q3, min, max)
 # ---------------------------
 ### Cache statistics ###
+hist_plot("Bo nho Cache", new_data$Cache, "KB", 1500)
+boxplot(new_data$Cache, main = "Boxplot of Cache", col="green")
+### Max_Memory_Size statistics ###
+hist_plot("Max_Memory_Size", new_data$Max_Memory_Size, "GB", 2000)
+boxplot(new_data$Max_Memory_Size, main = "Boxplot of MMS", col="green")
 hist_plot("?", new_data$Recommended_Customer_Price, "x", 2000)
