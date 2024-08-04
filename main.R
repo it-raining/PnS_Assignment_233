@@ -331,6 +331,23 @@ new_data <- new_data %>%
     DirectX_Support = sapply(DirectX_Support, get_num)
   ) # Convert into number
 # ---------------------------
+#Loc gia tri khong phu hop o cot PCI_Express_Revision va DirectX_Support#
+check_PCI_Express_Revision<-function(x){
+  x<-get_num(x)
+  return(pmin(pmax(x, 1.0), 6.0))
+}#Loc cot PCI_Express_Revision
+check_DirectX_Support<-function(x){
+  x<-get_num(x)
+  return(pmin(pmax(x, 1.0), 12.2))
+}#Loc cot DirectX_Support
+new_data <- new_data %>%
+  mutate(
+    PCI_Express_Revision = sapply(PCI_Express_Revision, check_PCI_Express_Revision),
+    PCI_Express_Revision = replace_na(as.character(PCI_Express_Revision), " "),
+    DirectX_Support = sapply(DirectX_Support, check_DirectX_Support), 
+    DirectX_Support = replace_na(as.character(DirectX_Support), " ")
+    )#Loc va xoa cac gia tri khong phu hop
+# ---------------------------
 ### nb_of_Cores ###
 # Do_nothing
 #################################
