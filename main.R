@@ -61,7 +61,8 @@ CleanData_f_name <- function(data, column_name, sample_column_name) {
       ]),
       # else just keep its value
       {{ column_name }}
-    ))
+    )) %>%
+    ungroup()
 }
 # Brief: Fill the missing values by average of Sample_Vector name
 # Arguments: data - table data; column_names - working column;
@@ -80,7 +81,8 @@ CleanData_f_name_avr <- function(data, column_name, sample_column_name) {
         mean(na.rm = TRUE),
       # else just keep its value
       {{ column_name }}
-    ))
+    )) %>%
+    ungroup()
 }
 #-----------------
 # Brief: Fill the missing values by the most repeated value
@@ -98,7 +100,8 @@ CleanData_f_name_mod <- function(data, column_name, sample_column_name) {
         get_num() %>%
         mfv1(na_rm = TRUE),
       {{ column_name }}
-    ))
+    )) %>%
+    ungroup()
 }
 #-----------------
 ### OUTLIER ###
@@ -108,19 +111,20 @@ CleanData_f_name_mod <- function(data, column_name, sample_column_name) {
 # Brief: Find the outlier of the data
 # Arguments: data - data table
 #             column_name - access data column name
-# e.g: outlier_cache <- outlier_finder(new_data, new_data$Cache)
+# e.g: outlier_cache <- outlier_finder(new_data, Cache)
 outlier_finder <- function(data, column_name) {
-  q1 <- quantile(column_name, 0.25, na.rm = TRUE)
-  q3 <- quantile(column_name, 0.75, na.rm = TRUE)
+  # Convert into a string
+  column_name <- deparse(substitute(column_name))
+  # Calc quartile values
+  q1 <- quantile(data[[column_name]], 0.25, na.rm = TRUE)
+  q3 <- quantile(data[[column_name]], 0.75, na.rm = TRUE)
   iqr <- q3 - q1
-  outliers <- data %>%
+  data %>%
     subset(
-      column_name < (q1 - 1.5 * iqr) |
-        column_name > (q3 + 1.5 * iqr)
+      data[[column_name]] < (q1 - 1.5 * iqr) |
+        data[[column_name]] > (q3 + 1.5 * iqr)
     )
-  return(outliers)
 }
-
 ### CONVERT FUNCTIONS ###
 # Brief: Convert data into number
 # Arguments: x - data to convert
@@ -187,25 +191,6 @@ CacheMapper <- function(x) {
   return(y * get_num(x))
 }
 #-----------------
-### PLOT ###
-# Brief: Create histogram for a given column
-# Arguments:  - column_name: working column
-#             - name: Name of the column
-#             - xlabel: unit of working column
-#             - max: maximum value of y axis
-# e.g: hist_plot("Bo nho Cache", new_data$Cache, MB, 512)
-hist_plot <- function(name, column_name, xlabel, max) {
-  hist(column_name,
-    main = name,
-    xlab = xlabel,
-    ylab = "Frequency",
-    ylim = c(0, max),
-    labels = TRUE,
-    breaks = 15,
-    col = "lightgreen"
-  )
-}
-
 #################################
 #       Data Pre-processing
 #################################
@@ -217,6 +202,7 @@ data <- read.csv("Data//Intel_CPUs.csv")
 new_data <- data[, c(
   "Product_Collection",
   "Vertical_Segment",
+  "Launch_Date",
   "Bus_Speed",
   "Cache",
   "Lithography",
@@ -249,6 +235,18 @@ missing_data_frequency <- missing_data %>%
   `/`(nrow(new_data)) %>%
   print()
 # ---------------------------
+### Product_Collection ###
+new_data$Product_Collection <- gsub("[^a-zA-Z0-9/// ]", "",
+  new_data$Product_Collection,
+  ignore.case = TRUE
+)
+# ---------------------------
+### Launch_Date ###
+years <- as.numeric(gsub("[^0-9]", "", new_data$Launch_Date)) %% 100
+quart <- get_num(new_data$Launch_Date)
+new_data$Launch_Date <- ifelse(years <= 22, years + 2000, years + 1900) + (3 * quart - 1) / 12
+new_data <- CleanData_f_name_mod(new_data, Launch_Date, Product_Collection)
+
 ### Bus_Speed ###
 # UNIT: MHz
 # Transfer per second to MHz
@@ -260,7 +258,7 @@ tmp <- separate(new_data,
 )
 new_data$Bus_Speed <- sapply(new_data$Bus_Speed, unit_to_M)
 new_data <- new_data %>%
-  CleanData_f_name_mod(Bus_Speed, Vertical_Segment)
+  CleanData_f_name_mod(Bus_Speed, Product_Collection)
 
 new_data$Max_nb_of_Memory_Channels <- ifelse(tmp$Bus_Type == "FSB",
   1,
@@ -278,7 +276,7 @@ new_data <- new_data %>%
   mutate(
     Max_nb_of_Memory_Channels = sapply(Max_nb_of_Memory_Channels, get_num)
   ) %>%
-  CleanData_f_name_mod(Max_nb_of_Memory_Channels, Vertical_Segment) %>%
+  CleanData_f_name_mod(Max_nb_of_Memory_Channels, Product_Collection) %>%
   CleanData_rm(Max_nb_of_Memory_Channels)
 # ---------------------------
 ### Max Memory Bandwidth ###
@@ -287,34 +285,34 @@ new_data <- new_data %>%
   mutate(
     Max_Memory_Bandwidth = sapply(Max_Memory_Bandwidth, get_num)
   ) %>%
-  CleanData_f_name_mod(Max_Memory_Bandwidth, Vertical_Segment) %>%
+  CleanData_f_name_mod(Max_Memory_Bandwidth, Product_Collection) %>%
   CleanData_rm(Max_Memory_Bandwidth)
 # ---------------------------
 ### Cache ###
 # UNIT: KB
 # Transfer per second to KB
 new_data$Cache <- sapply(new_data$Cache, CacheMapper)
-new_data <- CleanData_f_name_avr(new_data, Cache, Vertical_Segment)
+new_data <- CleanData_f_name_avr(new_data, Cache, Product_Collection)
 new_data <- CleanData_rm(new_data, Cache)
 # ---------------------------
 ### Max_Memory_Size ###
 # UNIT: GB
 # Transfer per second to GB
 new_data$Max_Memory_Size <- sapply(new_data$Max_Memory_Size, SizeMemory)
-new_data <- CleanData_f_name_avr(new_data, Max_Memory_Size, Vertical_Segment)
+new_data <- CleanData_f_name_avr(new_data, Max_Memory_Size, Product_Collection)
 new_data <- CleanData_rm(new_data, Max_Memory_Size)
 # ---------------------------
 ### TDP ###
 # UNIT: W
 new_data$TDP <- sapply(new_data$TDP, get_num)
-new_data <- CleanData_f_name_mod(new_data, TDP, Vertical_Segment)
+new_data <- CleanData_f_name_mod(new_data, TDP, Product_Collection)
 new_data <- CleanData_rm(new_data, TDP)
 # ---------------------------
 ### Processor_Base_Frequency ###
 # UNIT: GHz
 new_data$Processor_Base_Frequency <- sapply(new_data$Processor_Base_Frequency, SizeMemory)
 new_data$Processor_Base_Frequency <- round(new_data$Processor_Base_Frequency, digits = 2)
-new_data <- CleanData_f_name_mod(new_data, Processor_Base_Frequency, Vertical_Segment)
+new_data <- CleanData_f_name_mod(new_data, Processor_Base_Frequency, Product_Collection)
 # ---------------------------
 ### PCI_Express_Revision ###
 # UNIT: None
@@ -322,8 +320,7 @@ new_data <- new_data %>%
   mutate(
     PCI_Express_Revision = sapply(PCI_Express_Revision, get_num)
   ) %>%
-  CleanData_f_name_mod(PCI_Express_Revision, Vertical_Segment) %>%
-  CleanData_rm(PCI_Express_Revision)
+  CleanData_f_name_mod(PCI_Express_Revision, Product_Collection)
 # ---------------------------
 ### DirectX_Support ###
 # UNIT: None
@@ -331,8 +328,7 @@ new_data <- new_data %>%
   mutate(
     DirectX_Support = sapply(DirectX_Support, get_num)
   ) %>%
-  CleanData_f_name_mod(DirectX_Support, Vertical_Segment) %>%
-  CleanData_rm(DirectX_Support)
+  CleanData_f_name_mod(DirectX_Support, Product_Collection)
 # ---------------------------
 # Loc gia tri khong phu hop o cot PCI_Express_Revision va DirectX_Support#
 check_PCI_Express_Revision <- function(x) {
@@ -346,9 +342,9 @@ check_DirectX_Support <- function(x) {
 new_data <- new_data %>%
   mutate(
     PCI_Express_Revision = sapply(PCI_Express_Revision, check_PCI_Express_Revision),
-    PCI_Express_Revision = replace_na(as.character(PCI_Express_Revision), " "),
+    PCI_Express_Revision = replace_na(as.character(PCI_Express_Revision), "0"),
     DirectX_Support = sapply(DirectX_Support, check_DirectX_Support),
-    DirectX_Support = replace_na(as.character(DirectX_Support), " ")
+    DirectX_Support = replace_na(as.character(DirectX_Support), "0")
   ) # Loc va xoa cac gia tri khong phu hop
 # ---------------------------
 ### nb_of_Cores ###
@@ -370,9 +366,17 @@ new_data$Recommended_Customer_Price <- as.numeric(new_data$Recommended_Customer_
 
 price_medium <- sum(new_data$Recommended_Customer_Price, na.rm = TRUE)
 price_medium <- price_medium / 1301
-print(price_medium)
 new_data$Recommended_Customer_Price <- tidyr::replace_na(new_data$Recommended_Customer_Price, price_medium)
 new_data$Recommended_Customer_Price <- new_data$Recommended_Customer_Price
+### Lithography ###
+# UNIT: mm
+new_data <- new_data %>%
+  mutate(
+    Lithography = sapply(Lithography, get_num)
+  ) %>%
+  CleanData_f_name_mod(Lithography, Product_Collection) %>%
+  CleanData_rm(Lithography)
+# ---------------------------
 #################################
 #       Descriptive statistics
 #################################
@@ -380,9 +384,10 @@ new_data$Recommended_Customer_Price <- new_data$Recommended_Customer_Price
 ### Summary statistics ###
 #  !Add more specific
 summary_stats <- new_data[, c(
+  "Launch_Date",
   "Bus_Speed",
   "Cache",
-  # "Lithography",
+  "Lithography",
   "Max_Memory_Bandwidth",
   "Max_nb_of_Memory_Channels",
   "Max_Memory_Size",
@@ -409,24 +414,60 @@ min <- apply(summary_stats, 2, min)
 # Calculate max value
 max <- apply(summary_stats, 2, max)
 
-# Restore the features in tabular form
-summary_stats <- data.frame(mean, sd, q1, med, q3, min, max) %>% print()
+# Print results
+data.frame(mean, sd, q1, med, q3, min, max) %>% print()
 # ---------------------------
-### Cache statistics ###
-hist_plot("Bo nho Cache", new_data$Cache, "KB", 1500)
-boxplot(new_data$Cache, main = "Boxplot of Cache", col = "green")
-### Max_Memory_Size statistics ###
-hist_plot("Max_Memory_Size", new_data$Max_Memory_Size, "GB", 2000)
-boxplot(new_data$Max_Memory_Size, main = "Boxplot of MMS", col = "green")
-### Bus_Speed ###
-hist_plot("Bus speed", new_data$Bus_Speed, "MHz", 1500)
-boxplot(new_data$Bus_Speed, main = "Boxplot of Bus speed", col = "green")
-# ---------------------------
-### Max_nb_of_Memory_Channels ###
-hist_plot("Bus speed", new_data$Max_nb_of_Memory_Channels, "MHz", 1500)
-boxplot(new_data$Max_nb_of_Memory_Channels, main = "Boxplot of Bus speed", col = "green")
-# ---------------------------
-### Max Memory Bandwidth ###
-hist_plot("Bus speed", new_data$Max_Memory_Bandwidth, "MHz", 1500)
-boxplot(new_data$Max_Memory_Bandwidth, main = "Boxplot of Bus speed", col = "green")
-# ---------------------------
+### Hist plot ###
+# Brief: Create histogram for a given column
+# Arguments:  - column_name: working column
+#             - name: Name of the column
+#             - xlabel: unit of working column
+#             - max: maximum value of y axis
+# e.g: hist_plot("Bo nho Cache", new_data$Cache, MB, 512)
+hist_plot <- function(name, column_name, xlabel, max) {
+  hist(column_name,
+    main = name,
+    xlab = xlabel,
+    ylab = "Frequency",
+    ylim = c(0, max),
+    labels = TRUE,
+    breaks = 15,
+    col = "lightgreen"
+  )
+}
+# hist_plot("Bo nho Cache", new_data$Cache, "KB", 1500)
+# hist_plot("Max_Memory_Size", new_data$Max_Memory_Size, "GB", 2000)
+# hist_plot("Bus speed", new_data$Bus_Speed, "MHz", 1500)
+
+### Boxplot ###
+for (i in colnames(summary_stats)) {
+  boxplot(new_data[[i]],
+    xlab = i,
+    col = topo.colors(10),
+    main = paste("Boxplot of", i),
+    horizontal = TRUE
+  )
+}
+
+for (i in colnames(summary_stats)) {
+  if (i != "Launch_Date") {
+    boxplot(new_data[[i]] ~ new_data$Launch_Date,
+      xlab = "Launch_Date",
+      ylab = i,
+      col = topo.colors(10),
+      main = paste("Boxplot of", i, "with release date")
+    )
+  }
+}
+
+for (i in colnames(summary_stats)) {
+  if (i != "Recommended_Customer_Price") {
+    boxplot(new_data[[i]] ~ new_data$Recommended_Customer_Price,
+      xlab = i,
+      ylab = "Recommended Customer Price",
+      col = topo.colors(10),
+      main = paste("Boxplot of", i, "with recommended price"),
+      horizontal = TRUE
+    )
+  }
+}
