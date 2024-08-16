@@ -384,10 +384,8 @@ new_data <- new_data %>%
 ### Summary statistics ###
 #  !Add more specific
 summary_stats <- new_data[, c(
-  "Launch_Date",
   "Bus_Speed",
   "Cache",
-  "Lithography",
   "Max_Memory_Bandwidth",
   "Max_nb_of_Memory_Channels",
   "Max_Memory_Size",
@@ -396,26 +394,37 @@ summary_stats <- new_data[, c(
   "Recommended_Customer_Price",
   "TDP"
 )]
-# !Note that not every vectors has to be summarized
-# Calculate the average of each sample
-mean <- apply(summary_stats, 2, mean)
+Mean <- apply (summary_stats ,2 , mean ) 			# Tinh trung binh
+SD <- apply (summary_stats ,2 , sd) 				# Tinh do lech chuan
+Median <- apply (summary_stats ,2 , median ) 		# Tinh trung vi
+Q1 <- apply (summary_stats ,2 , quantile , probs =0.25) 	# Tinh phan vi 25% (Q1)
+Q3 <- apply (summary_stats ,2 , quantile , probs =0.75) 	# Tinh phan vi 75% (Q3)
+Min <- apply (summary_stats ,2 , min ) 			# Tinh gia tri nho nhat
+Max <- apply (summary_stats ,2 , max ) 			# Tinh gia tri lon nhat
+#Tao dataframe
+# Tạo một bản sao của tên hàng (rownames) trước khi áp dụng lapply
+stats_df <- data.frame(Mean,SD,Q1,Median,Q3,Min,Max)
+print(stats_df)
+rownames_stats_df <- rownames(stats_df)
 
-# Calculate standard derive (correction)
-sd <- apply(summary_stats, 2, sd)
+# Áp dụng formatC để rút gọn số 0 không cần thiết
+stats_df <- data.frame(lapply(stats_df, function(x) formatC(x, format = "f", digits = 4, drop0trailing = TRUE)))
 
-# Calculate quartile scores
-q1 <- apply(summary_stats, 2, quantile, probs = 0.25, na.rm = TRUE)
-med <- apply(summary_stats, 2, median)
-q3 <- apply(summary_stats, 2, quantile, probs = 0.75, na.rm = TRUE)
+# Gán lại tên hàng ban đầu cho data frame sau khi định dạng
+rownames(stats_df) <- rownames_stats_df
 
-# Calculate min value
-min <- apply(summary_stats, 2, min)
-
-# Calculate max value
-max <- apply(summary_stats, 2, max)
-
-# Print results
-data.frame(mean, sd, q1, med, q3, min, max) %>% print()
+# Xem kết quả
+print(stats_df)
+new_data$Product_Collection<- gsub("[^0-9A-Za-z///' ]","" , new_data$Product_Collection ,ignore.case = TRUE)
+new_data <- new_data %>%
+  mutate(Product_Collection = gsub('.*Core.*', 'Intel Core Processors', Product_Collection),
+         Product_Collection = gsub('.*Celeron.*', 'Intel Celeron Processor', Product_Collection),
+         Product_Collection = gsub('.*Pentium.*', 'Intel Pentium Processor', Product_Collection),
+         Product_Collection = gsub('.*Atom.*', 'Intel Atom Processors', Product_Collection),
+         Product_Collection = gsub('.*Xeon.*', 'Intel Xeon Processors', Product_Collection),
+         Product_Collection = gsub('.*Quark.*', 'Intel Quark Processors', Product_Collection),
+         Product_Collection = gsub('.*Itanium.*', 'Intel Itanium Processors', Product_Collection))
+table(new_data$Product_Collection)
 # ---------------------------
 ### Hist plot ###
 # Brief: Create histogram for a given column
