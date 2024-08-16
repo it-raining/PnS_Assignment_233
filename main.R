@@ -471,3 +471,31 @@ for (i in colnames(summary_stats)) {
     )
   }
 }
+########################ANOVA#############
+      print(name_table <- table(new_data$nb_of_Cores))
+new_data_filtered <- new_data[new_data$nb_of_Cores %in% names(name_table[name_table > 50]), ]
+print(name_table_filterd <- table(new_data_filtered$nb_of_Cores))
+cores_1 <- subset(new_data_filtered, nb_of_Cores == "1")
+shapiro.test(cores_1$Recommended_Customer_Price)
+cores_2 <- subset(new_data_filtered, nb_of_Cores == "2")
+shapiro.test(cores_2$Recommended_Customer_Price)
+cores_4 <- subset(new_data_filtered, nb_of_Cores == "4")
+shapiro.test(cores_4$Recommended_Customer_Price)
+cores_6 <- subset(new_data_filtered, nb_of_Cores == "6")
+shapiro.test(cores_6$Recommended_Customer_Price)
+cores_8 <- subset(new_data_filtered, nb_of_Cores == "8")
+shapiro.test(cores_8$Recommended_Customer_Price)
+aov1 <- aov(Recommended_Customer_Price~as.factor(nb_of_Cores), new_data_filtered)
+summary(aov1)
+TukeyHSD(aov1)
+frame()
+plot.new()
+
+##Setup and push viewport
+vp0 <- viewport(x = .15, y = 0, just = c("left", "bottom"),
+                width = .85, height = 1)
+pushViewport(vp0)
+
+##Add barplot
+par(new = TRUE, fig = gridFIG())
+plot(TukeyHSD(aov1), las = 1)
