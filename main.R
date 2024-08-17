@@ -1,7 +1,6 @@
 # INSTALL PACKAGE
 # install.packages("tidyr")
 # install.packages("dplyr")
-
 # install.packages("stringr")
 # install.packages("statip")
 
@@ -151,11 +150,11 @@ unit_to_M <- function(x) {
     substr(1, 1) %>% # get the first letter
     toupper() # uppercase the unit
   fac <- switch(unit,
-    K = 1 / 1000, # kHz to MHz
-    M = 1, # MHz to MHz
-    G = 1000, # GHz to MHz
-    T = 1000000, # THz to MHz
-    1 # Default: MHz
+                K = 1 / 1000, # kHz to MHz
+                M = 1, # MHz to MHz
+                G = 1000, # GHz to MHz
+                T = 1000000, # THz to MHz
+                1 # Default: MHz
   )
   return(num * fac)
 }
@@ -197,7 +196,7 @@ CacheMapper <- function(x) {
 #################################
 # ---------------------------
 # Read data
-data <- read.csv("Data//Intel_CPUs.csv")
+data <- read.csv("C:/Users/Admin/OneDrive - hcmut.edu.vn/Tải về/Intel_CPUs.csv")
 # ---------------------------
 # Extract data
 new_data <- data[, c(
@@ -219,6 +218,20 @@ new_data <- data[, c(
 )]
 str(new_data)
 # ---------------------------
+check_missing_data <- function(data){
+  #check NA values
+  na_check <- is.na(data)
+  #check NULL values
+  null_check <- sapply(data , is.null )
+  #check empty string or "N/A"
+  empty_na_check <- sapply(data , function(x) x== "" | x == "N/A")
+  
+  #combine all 
+  missing_data_check <- na_check | null_check | empty_na_check
+  
+  return (sum(missing_data_check))
+}
+
 ### PROCESSING MISSING DATA ###
 # Count missing data on new data label
 missing_data <- new_data %>%
@@ -238,38 +251,42 @@ missing_data_frequency <- missing_data %>%
 # ---------------------------
 ### Product_Collection ###
 new_data$Product_Collection <- gsub("[^a-zA-Z0-9/// ]", "",
-  new_data$Product_Collection,
-  ignore.case = TRUE
+                                    new_data$Product_Collection,
+                                    ignore.case = TRUE
 )
+new_data <- CleanData_rm(new_data, Product_Collection)
 # ---------------------------
 ### Launch_Date ###
 years <- as.numeric(gsub("[^0-9]", "", new_data$Launch_Date)) %% 100
 quart <- get_num(new_data$Launch_Date)
-new_data$Launch_Date <- ifelse(years <= 22, years + 2000, years + 1900) + (3 * quart - 1) / 12
+new_data$Launch_Date <- ifelse(years <= 22, years + 2000, years + 1900) + (3 * quart - 2) / 12
 new_data <- CleanData_f_name_mod(new_data, Launch_Date, Product_Collection)
+new_data <- CleanData_rm(new_data, Launch_Date)
 
 ### Bus_Speed ###
 # UNIT: MHz
 # Transfer per second to MHz
 tmp <- separate(new_data,
-  col = Bus_Speed,
-  into = c("Bus_Speed", "Speed_Unit", "Bus_Type"),
-  sep = " ",
-  fill = "right"
+                col = Bus_Speed,
+                into = c("Bus_Speed", "Speed_Unit", "Bus_Type"),
+                sep = " ",
+                fill = "right"
 )
 new_data$Bus_Speed <- sapply(new_data$Bus_Speed, unit_to_M)
 new_data <- new_data %>%
   CleanData_f_name_mod(Bus_Speed, Product_Collection)
 
 new_data$Max_nb_of_Memory_Channels <- ifelse(tmp$Bus_Type == "FSB",
-  1,
-  new_data$Max_nb_of_Memory_Channels
+                                             1,
+                                             new_data$Max_nb_of_Memory_Channels
 )
 new_data$Max_Memory_Bandwidth <- ifelse(tmp$Bus_Type == "FSB",
-  new_data$Bus_Speed * 4 / 1000,
-  new_data$Max_Memory_Bandwidth
+                                        new_data$Bus_Speed * 4 / 1000,
+                                        new_data$Max_Memory_Bandwidth
 )
 rm(tmp)
+new_data <- CleanData_rm(new_data, Bus_Speed)
+
 # ---------------------------
 ### Max_nb_of_Memory_Channels ###
 # UNIT: None
@@ -314,6 +331,7 @@ new_data <- CleanData_rm(new_data, TDP)
 new_data$Processor_Base_Frequency <- sapply(new_data$Processor_Base_Frequency, SizeMemory)
 new_data$Processor_Base_Frequency <- round(new_data$Processor_Base_Frequency, digits = 2)
 new_data <- CleanData_f_name_mod(new_data, Processor_Base_Frequency, Product_Collection)
+new_data <- CleanData_rm(new_data, Processor_Base_Frequency)
 # ---------------------------
 ### PCI_Express_Revision ###
 # UNIT: None
@@ -347,9 +365,14 @@ new_data <- new_data %>%
     DirectX_Support = sapply(DirectX_Support, check_DirectX_Support),
     DirectX_Support = replace_na(as.character(DirectX_Support), "0")
   ) # Loc va xoa cac gia tri khong phu hop
+new_data <- CleanData_rm(new_data, DirectX_Support)
+new_data <- CleanData_rm(new_data, PCI_Express_Revision)
+
 # ---------------------------
 ### nb_of_Cores ###
 # Do_nothing
+CleanData_f_name_mod(new_data ,nb_of_Cores, Product_Collection)
+new_data <- CleanData_rm(new_data, nb_of_Cores)
 # ---------------------------
 ### Recommended_Customer_Price ###
 new_data$Recommended_Customer_Price <- gsub("\\$", "", new_data$Recommended_Customer_Price)
@@ -368,7 +391,7 @@ new_data$Recommended_Customer_Price <- as.numeric(new_data$Recommended_Customer_
 price_medium <- sum(new_data$Recommended_Customer_Price, na.rm = TRUE)
 price_medium <- price_medium / 1301
 new_data$Recommended_Customer_Price <- tidyr::replace_na(new_data$Recommended_Customer_Price, price_medium)
-new_data$Recommended_Customer_Price <- new_data$Recommended_Customer_Price
+new_data <- CleanData_rm(new_data, nb_of_Cores)
 ### Lithography ###
 # UNIT: mm
 new_data <- new_data %>%
@@ -377,6 +400,9 @@ new_data <- new_data %>%
   ) %>%
   CleanData_f_name_mod(Lithography, Product_Collection) %>%
   CleanData_rm(Lithography)
+
+new_mising_data <- sapply(new_data, check_missing_data)
+print(new_mising_data)
 # ---------------------------
 #################################
 #       Descriptive statistics
@@ -387,6 +413,7 @@ new_data <- new_data %>%
 summary_stats <- new_data[, c(
   "Bus_Speed",
   "Cache",
+  "Lithography",
   "Max_Memory_Bandwidth",
   "Max_nb_of_Memory_Channels",
   "Max_Memory_Size",
@@ -426,6 +453,9 @@ new_data <- new_data %>%
          Product_Collection = gsub('.*Quark.*', 'Intel Quark Processors', Product_Collection),
          Product_Collection = gsub('.*Itanium.*', 'Intel Itanium Processors', Product_Collection))
 table(new_data$Product_Collection)
+table(new_data$Vertical_Segment)
+table(new_data$DirectX_Support)
+table(new_data$PCI_Express_Revision)
 # ---------------------------
 ### Hist plot ###
 # Brief: Create histogram for a given column
@@ -434,38 +464,39 @@ table(new_data$Product_Collection)
 #             - xlabel: unit of working column
 #             - max: maximum value of y axis
 # e.g: hist_plot("Bo nho Cache", new_data$Cache, MB, 512)
-hist_plot <- function(name, column_name, xlabel, max) {
+hist_plot <- function(name, column_name, xlabel, x_max, y_max) {
   hist(column_name,
-    main = name,
-    xlab = xlabel,
-    ylab = "Frequency",
-    ylim = c(0, max),
-    labels = TRUE,
-    breaks = 15,
-    col = "lightgreen"
+       main = name,
+       xlab = xlabel,
+       ylab = "Frequency",
+       xlim = c(0, x_max),
+       ylim = c(0, y_max),
+       labels = TRUE,
+       breaks = 15,
+       col = "lightgreen"
   )
 }
-# hist_plot("Bo nho Cache", new_data$Cache, "KB", 1500)
-# hist_plot("Max_Memory_Size", new_data$Max_Memory_Size, "GB", 2000)
-# hist_plot("Bus speed", new_data$Bus_Speed, "MHz", 1500)
+hist_plot("Cache", new_data$Cache, "KB", 1500)
+hist_plot("TDP", new_data$TDP, "W", 200, 500)
+hist_plot("Processor Base Frequency", new_data$Processor_Base_Frequency, "MHz", 5, 600)
 
-### Boxplot ###
+## Boxplot ###
 for (i in colnames(summary_stats)) {
   boxplot(new_data[[i]],
-    xlab = i,
-    col = topo.colors(10),
-    main = paste("Boxplot of", i),
-    horizontal = TRUE
+          xlab = i,
+          col = topo.colors(10),
+          main = paste("Boxplot of", i),
+          horizontal = TRUE
   )
 }
 
 for (i in colnames(summary_stats)) {
   if (i != "Launch_Date") {
     boxplot(new_data[[i]] ~ new_data$Launch_Date,
-      xlab = "Launch_Date",
-      ylab = i,
-      col = topo.colors(10),
-      main = paste("Boxplot of", i, "with release date")
+            xlab = "Launch_Date",
+            ylab = i,
+            col = topo.colors(10),
+            main = paste("Boxplot of", i, "with release date")
     )
   }
 }
@@ -473,16 +504,16 @@ for (i in colnames(summary_stats)) {
 for (i in colnames(summary_stats)) {
   if (i != "Recommended_Customer_Price") {
     boxplot(new_data[[i]] ~ new_data$Recommended_Customer_Price,
-      xlab = i,
-      ylab = "Recommended Customer Price",
-      col = topo.colors(10),
-      main = paste("Boxplot of", i, "with recommended price"),
-      horizontal = TRUE
+            xlab = i,
+            ylab = "Recommended Customer Price",
+            col = topo.colors(10),
+            main = paste("Boxplot of", i, "with recommended price"),
+            horizontal = TRUE
     )
   }
 }
 ########################ANOVA#############
-      print(name_table <- table(new_data$nb_of_Cores))
+print(name_table <- table(new_data$nb_of_Cores))
 new_data_filtered <- new_data[new_data$nb_of_Cores %in% names(name_table[name_table > 50]), ]
 print(name_table_filterd <- table(new_data_filtered$nb_of_Cores))
 cores_1 <- subset(new_data_filtered, nb_of_Cores == "1")
@@ -509,3 +540,21 @@ pushViewport(vp0)
 ##Add barplot
 par(new = TRUE, fig = gridFIG())
 plot(TukeyHSD(aov1), las = 1)
+#######################ty le 2 mau#########
+core1 = subset(new_data, nb_of_Cores == "1") $ TDP 
+core4 = subset(new_data, nb_of_Cores == "4") $ TDP 
+core1_50 = subset (core1, core1 > 50)
+core4_50 = subset(core4, core4 > 50)
+core1_size = length (core1)
+core4_size = length (core4) 
+core1_50_size = length (core1_50)
+core4_50_size = length (core4_50)
+print(core1_size)
+print(core4_size)
+print(core1_50_size)
+print(core4_50_size)
+result <- prop.test(x = c(core1_50_size, core4_50_size), 
+                    n = c(core1_size, core4_size), 
+                    alternative = "less",
+                    correct = FALSE)
+print(result)
