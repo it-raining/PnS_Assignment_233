@@ -516,6 +516,18 @@ for (i in colnames(summary_stats)) {
     )
   }
 }
+#-------------Standard Distribution Chart----------#
+ggqqplot(new_data$Lithography, ylab = "Lithography")
+ggqqplot(new_data$Recommended_Customer_Price, ylab = "Recommended Customer Price [$]")
+ggqqplot(new_data$nb_of_Cores, ylab = "Number of Cores")
+ggqqplot(new_data$Processor_Base_Frequency, ylab = "Processor Base Frequency [GHz]")
+ggqqplot(new_data$Cache, ylab = "Cache [KB]")
+ggqqplot(new_data$Bus_Speed, ylab = "Bus Speed [MHz]")
+ggqqplot(new_data$Max_Memory_Size, ylab = "Max Memory Size [GB]")
+ggqqplot(new_data$Max_Memory_Bandwidth, ylab = "Max Memory Bandwidth [GB/s]")
+ggqqplot(new_data$Max_nb_of_Memory_Channels, ylab = "Max_nb_of_Memory_Channels")
+ggqqplot(new_data$TDP, ylab = "TDP [W]")
+ggqqplot(new_data$Launch_Date, ylab = "Launch Date")
 #################################
 #       Inferential statistics
 #################################
