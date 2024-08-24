@@ -3,6 +3,13 @@
 # install.packages("dplyr")
 # install.packages("stringr")
 # install.packages("statip")
+# install.packages("ggplot2")
+# install.packages("grid")
+# install.packages("gridBase")
+# install.packages("corrplot")
+# install.packages("ggpubr")
+# install.packages("zoo")
+# install.packages("car")
 
 # ---------------------------
 # Includes
@@ -12,6 +19,12 @@ library(dplyr)
 library(statip)
 library(ggplot2)
 library(grid)
+library(gridBase)
+library(corrplot)
+library(ggpubr)
+library(zoo)
+library(car)
+
 
 # ---------------------------
 # User Function
@@ -125,6 +138,19 @@ outlier_finder <- function(data, column_name) {
     subset(
       data[[column_name]] < (q1 - 1.5 * iqr) |
         data[[column_name]] > (q3 + 1.5 * iqr)
+    )
+}
+outlier_rm <- function(data, column_name) {
+  # Convert into a string
+  column_name <- deparse(substitute(column_name))
+  # Calc quartile values
+  q1 <- quantile(data[[column_name]], 0.25, na.rm = TRUE)
+  q3 <- quantile(data[[column_name]], 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  data %>%
+    subset(
+      data[[column_name]] >= (q1 - 1.5 * iqr) &
+        data[[column_name]] <= (q3 + 1.5 * iqr)
     )
 }
 ### CONVERT FUNCTIONS ###
@@ -516,6 +542,16 @@ for (i in colnames(summary_stats)) {
     )
   }
 }
+corrplot(
+  corr = cor(new_data[3:13]),
+  method = "color",
+  order = "FPC",
+  title = "correlation plot",
+  tl.cex = 0.7,
+  number.cex = 0.7,
+  addCoef.col = "red",
+  addgrid.col = 0.1
+)
 #-------------Standard Distribution Chart----------#
 ggqqplot(new_data$Lithography, ylab = "Lithography")
 ggqqplot(new_data$Recommended_Customer_Price, ylab = "Recommended Customer Price [$]")
