@@ -432,6 +432,14 @@ new_data <- new_data %>%
 new_mising_data <- sapply(new_data, check_missing_data)
 print(new_mising_data)
 # ---------------------------
+### Processor_Base_Frequency ###
+# UNIT: Ghz
+new_data$Processor_Base_Frequency <- sapply(new_data$Processor_Base_Frequency, SizeMemory)
+new_data$Processor_Base_Frequency <- round(new_data$Processor_Base_Frequency, digits = 2)
+# ---------------------------
+### nb_of_Cores ###
+# Do nothing
+#################################
 #################################
 #       Descriptive statistics
 #################################
